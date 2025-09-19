@@ -94,6 +94,15 @@ spec:
       containers:
       - name: frontend
         image: sudhanaga1002/frontend:1.2.0
+        resources:
+          requests:
+            # soft limit
+            memory: "68Mi"
+            cpu: "100m"
+          limits:
+            # hard limit
+            memory: "128Mi"
+            cpu: "150m"
         ports:
         - containerPort: 80
         volumeMounts:
