@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-headless
+  namespace: expense
+  labels:
+    app: mysql
+    project: expense
+    tier: db
+spec:
+  clusterIP: None
+  selector:
+    app: mysql
+    project: expense
+    tier: db
+  ports:
+  - protocol: TCP
+    port: 3306 #service port port exposed inside the cluster, Port exposed by the Service (what clients see).
+    targetPort: 3306 # port on the pod/container where app is runnung
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: expense
+  labels:
+    app: mysql
+    project: expense
+    tier: db
+spec:
+  selector:
+    app: mysql
+    project: expense
+    tier: db
+  ports:
+  - protocol: TCP
+    port: 3306 #service port port exposed inside the cluster, Port exposed by the Service (what clients see).
+    targetPort: 3306  
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: expense
+spec:
+  selector:
+    matchLabels:
+      app: mysql
+      project: expense
+      tier: db
+  serviceName: "mysql-headless"
+  replicas: 2 # by default is 1
+  minReadySeconds: 10 # by default is 0
+  template:
+    metadata:
+      labels:
+        app: mysql
+        project: expense
+        tier: db
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: mysql
+        image: sudhanaga1002/mysql:1.0.0
+        
+        volumeMounts:
+        - name: mysql
+          mountPath: /var/lib/mysql
+  # instead of creating pvc, you can directly provide in statefulset        
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql
+      namespace: expense
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "ebs-sc"
+      resources:
+        requests:
+          storage: 1Gi         

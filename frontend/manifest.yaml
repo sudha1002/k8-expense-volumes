@@ -1,0 +1,120 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nginx
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log;
+    pid /run/nginx.pid; 
+    # Load dynamic modules. See /usr/share/doc/nginx/README.dynamic.
+    include /usr/share/nginx/modules/*.conf;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log  /var/log/nginx/access.log  main;
+
+        sendfile            on;
+        tcp_nopush          on;
+        tcp_nodelay         on;
+        keepalive_timeout   65;
+        types_hash_max_size 2048;
+
+        include             /etc/nginx/mime.types;
+        default_type        application/octet-stream;
+
+        # Load modular configuration files from the /etc/nginx/conf.d directory.
+        # See http://nginx.org/en/docs/ngx_core_module.html#include
+        # for more information.
+        include /etc/nginx/conf.d/*.conf;
+
+        server {
+            listen       8080 default_server;
+            listen       [::]:8080 default_server;
+            server_name  _;
+            root         /usr/share/nginx/html;
+
+           # Load configuration files for the default server block.
+           include /etc/nginx/default.d/*.conf;
+
+    	     
+    	
+    	
+           error_page 404 /404.html;
+               location = /40x.html {
+           }
+
+           error_page 500 502 503 504 /50x.html;
+               location = /50x.html {
+           }
+        }
+
+
+    }
+ 
+  
+---  
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: frontend
+  namespace: expense
+  labels:
+    app: frontend
+    tier: frontend
+    project: expense
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+      tier: frontend
+      project: expense
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: frontend
+        project: expense
+    spec:
+      containers:
+      - name: frontend
+        image: sudhanaga1002/frontend:1.2.0
+        ports:
+        - containerPort: 80
+        volumeMounts:
+            - name: nginx
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+      volumes:
+      - name: nginx
+        configMap:
+          name: nginx
+          items:
+            - key: nginx.conf
+              path: nginx.conf        
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: frontend
+  namespace: expense
+spec:
+  type: LoadBalancer
+  selector:
+    app: frontend
+    tier: frontend
+    project: expense
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080                        
